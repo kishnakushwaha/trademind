@@ -84,6 +84,32 @@ def eod_summary(agent: TradeMindAgent):
     alert_daily_summary(summary)
 
 
+# ── Heartbeat Server (for Render Free Tier) ────────────────────────────────────
+def run_heartbeat():
+    """Simple HTTP server to keep Render Free Tier alive."""
+    import http.server
+    import socketserver
+    import os
+    import threading
+
+    PORT = int(os.environ.get("PORT", 8080))
+    
+    class HeartbeatHandler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            self.wfile.write(b"TradeMind Agent is ALIVE and scanning market...")
+
+    def serve():
+        with socketserver.TCPServer(("", PORT), HeartbeatHandler) as httpd:
+            logger.info(f"Heartbeat server started on port {PORT}")
+            httpd.serve_forever()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="TradeMind AI Agent")
@@ -99,6 +125,10 @@ def main():
     args = parser.parse_args()
 
     logger.info(f"TradeMind starting | Mode: {args.mode}")
+
+    # Start heartbeat if running as agent (required for Render)
+    if args.mode == "agent":
+        run_heartbeat()
 
     # ── Backtest mode ──────────────────────────────────────────────────────────
     if args.mode == "backtest":

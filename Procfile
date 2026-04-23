@@ -1,1 +1,1 @@
-worker: python main.py --mode agent
+web: python main.py --mode agent
