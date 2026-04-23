@@ -72,6 +72,19 @@ class PaperTrader:
         }
         self._append_trade(trade)
         self._trade_counter += 1
+        
+        # Telegram alert
+        from monitor.telegram_bot import send_telegram_msg
+        msg = (f"🔵 *NEW PAPER TRADE*\n\n"
+               f"Stock: {ticker}\n"
+               f"Entry: ₹{entry_price}\n"
+               f"Qty: {qty}\n"
+               f"SL: ₹{sl_price}\n"
+               f"Target 1: ₹{target_1}\n"
+               f"Target 2: ₹{target_2}\n"
+               f"Score: {signal_score}")
+        send_telegram_msg(msg)
+        
         logger.info(f"Paper trade #{trade['id']} opened: {ticker} @ ₹{entry_price}")
         return trade
 
@@ -86,6 +99,7 @@ class PaperTrader:
                 entry  = float(trade["entry_price"])
                 qty    = int(trade["qty"])
                 pnl    = round((exit_price - entry) * qty, 2)
+                ticker = trade["ticker"]
 
                 trade["exit_date"]   = datetime.now().strftime("%Y-%m-%d %H:%M")
                 trade["exit_price"]  = exit_price
@@ -98,6 +112,17 @@ class PaperTrader:
 
         if updated:
             self._save_all_trades(trades)
+            
+            # Telegram alert
+            from monitor.telegram_bot import send_telegram_msg
+            result_icon = "🟢" if updated["result"] == "WIN" else "🔴"
+            msg = (f"{result_icon} *PAPER TRADE CLOSED*\n\n"
+                   f"Stock: {ticker}\n"
+                   f"Exit: ₹{exit_price}\n"
+                   f"Reason: {exit_reason}\n"
+                   f"P&L: ₹{updated['pnl']} ({updated['result']})")
+            send_telegram_msg(msg)
+            
             logger.info(
                 f"Paper trade #{trade_id} closed @ ₹{exit_price} | "
                 f"P&L: ₹{updated['pnl']} ({updated['result']})"
