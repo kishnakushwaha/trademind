@@ -1,0 +1,33 @@
+# Python environment
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+
+# Application Specific
+.agent/
+scratch/
+cache/
+logs/
+
+# Sensitive data
+*.key
+*.token
+*.secret
+
+# OS/IDEs
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Misc
+test_*.py
+*.log
+*.csv
+!requirements.txt
+!render.yaml
+!Procfile

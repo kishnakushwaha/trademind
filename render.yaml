@@ -1,0 +1,15 @@
+services:
+  - type: worker
+    name: trademind-agent
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py --mode agent
+    envVars:
+      - key: TRADING_MODE
+        value: paper
+      - key: TOTAL_CAPITAL
+        value: 3000
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false

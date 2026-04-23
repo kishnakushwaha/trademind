@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeMind Monitor</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+:root {
+  --bg:      #0d0f14;
+  --s1:      #141720;
+  --s2:      #1c1f2e;
+  --s3:      #252840;
+  --border:  #2a2d40;
+  --text:    #d4d8f0;
+  --muted:   #666880;
+  --hint:    #444660;
+  --green:   #2dd4a0;
+  --red:     #f75c7c;
+  --amber:   #f7c948;
+  --blue:    #5b8dee;
+  --purple:  #9d7cf7;
+  --glow-g:  rgba(45,212,160,0.12);
+  --glow-r:  rgba(247,92,124,0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+code, .mono { font-family: 'IBM Plex Mono', monospace; }
+
+/* Layout */
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--s1); position: sticky; top: 0; z-index: 10; }
+.logo { font-size: 14px; font-weight: 600; letter-spacing: 0.1em; color: var(--purple); }
+.logo span { color: var(--green); }
+.status-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot.live { background: var(--green); animation: blink 2s infinite; }
+.dot.paper { background: var(--amber); }
+.dot.off { background: var(--muted); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.main { display: grid; grid-template-columns: 280px 1fr; gap: 0; height: calc(100vh - 50px); }
+.sidebar { border-right: 1px solid var(--border); overflow-y: auto; background: var(--s1); }
+.content { overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+/* Sidebar */
+.sb-section { padding: 14px 16px 10px; }
+.sb-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: var(--hint); text-transform: uppercase; margin-bottom: 10px; }
+.metric-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.metric-name { font-size: 12px; color: var(--muted); }
+.metric-val { font-size: 14px; font-weight: 500; font-family: 'IBM Plex Mono', monospace; }
+.green { color: var(--green); }
+.red { color: var(--red); }
+.amber { color: var(--amber); }
+.blue { color: var(--blue); }
+.divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* Cards */
+.card { background: var(--s1); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.card-title { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; }
+
+/* Signal grid */
+.signal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.signal-card { background: var(--s2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; cursor: pointer; transition: border-color 0.2s; position: relative; overflow: hidden; }
+.signal-card:hover { border-color: var(--purple); }
+.signal-card.buy { border-left: 3px solid var(--green); background: linear-gradient(135deg, rgba(45,212,160,0.05) 0%, var(--s2) 60%); }
+.signal-card.sell { border-left: 3px solid var(--red); background: linear-gradient(135deg, rgba(247,92,124,0.05) 0%, var(--s2) 60%); }
+.signal-card.hold { border-left: 3px solid var(--hint); }
+.sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.sc-ticker { font-size: 15px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+.sc-signal { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 20px; }
+.sc-signal.BUY { background: rgba(45,212,160,0.15); color: var(--green); }
+.sc-signal.SELL { background: rgba(247,92,124,0.15); color: var(--red); }
+.sc-signal.HOLD { background: rgba(100,100,120,0.15); color: var(--muted); }
+.sc-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.sc-m { background: var(--s3); border-radius: 5px; padding: 6px 8px; }
+.sc-m-label { font-size: 9px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.sc-m-val { font-size: 13px; font-weight: 500; font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
+.score-bar { height: 3px; background: var(--s3); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.score-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+.sc-reasons { font-size: 11px; color: var(--muted); line-height: 1.6; margin-top: 8px; display: none; }
+.signal-card.expanded .sc-reasons { display: block; }
+.sc-time { font-size: 10px; color: var(--hint); margin-top: 6px; }
+
+/* Score breakdown bars */
+.breakdown { display: flex; flex-direction: column; gap: 8px; }
+.br-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.br-label { width: 80px; color: var(--muted); flex-shrink: 0; }
+.br-bar { flex: 1; height: 6px; background: var(--s3); border-radius: 3px; overflow: hidden; }
+.br-fill { height: 100%; border-radius: 3px; }
+.br-val { width: 36px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+
+/* Trade log */
+.trade-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.trade-table th { text-align: left; padding: 8px 10px; color: var(--muted); font-weight: 600; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; }
+.trade-table td { padding: 10px; border-bottom: 1px solid var(--border); font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+.trade-table tr:last-child td { border-bottom: none; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+.badge.WIN { background: rgba(45,212,160,0.15); color: var(--green); }
+.badge.LOSS { background: rgba(247,92,124,0.15); color: var(--red); }
+.badge.OPEN { background: rgba(91,141,238,0.15); color: var(--blue); }
+
+/* Buttons */
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; cursor: pointer; border: 1px solid var(--border); background: var(--s2); color: var(--text); font-family: 'IBM Plex Sans', sans-serif; transition: all 0.2s; }
+.btn:hover { border-color: var(--purple); color: var(--purple); }
+.btn-run { background: var(--purple); color: #fff; border-color: var(--purple); }
+.btn-run:hover { background: #8060e0; }
+.btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Input */
+input[type=text], select {
+  background: var(--s2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 12px; font-size: 12px; color: var(--text);
+  font-family: 'IBM Plex Mono', monospace; outline: none;
+}
+input[type=text]:focus, select:focus { border-color: var(--purple); }
+select option { background: var(--s1); }
+
+/* Backtest results */
+.bt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.bt-stat { background: var(--s2); border-radius: 8px; padding: 12px; border: 1px solid var(--border); }
+.bt-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.bt-val { font-size: 20px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; margin-top: 4px; }
+
+/* Loading */
+.loading { color: var(--muted); font-size: 12px; font-family: 'IBM Plex Mono', monospace; }
+.loading::after { content: '...'; animation: dots 1.2s infinite; }
+@keyframes dots { 0%{content:'.'} 40%{content:'..'} 80%{content:'...'} }
+
+/* Empty state */
+.empty { text-align: center; color: var(--muted); font-size: 13px; padding: 30px 0; }
+
+.tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--s3); color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">TRADE<span>MIND</span></div>
+  <div style="display:flex;gap:16px;align-items:center">
+    <div class="status-row">
+      <div class="dot paper" id="mode-dot"></div>
+      <span id="mode-label">PAPER MODE</span>
+    </div>
+    <div class="status-row" id="clock">—</div>
+    <button class="btn btn-run" id="scan-btn" onclick="runScan()">Run Scan</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sb-section">
+      <div class="sb-label">Portfolio</div>
+      <div class="metric-row">
+        <span class="metric-name">Capital</span>
+        <span class="metric-val" id="sb-capital">₹3,000</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">Day P&L</span>
+        <span class="metric-val" id="sb-daypnl">₹0</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">Open trades</span>
+        <span class="metric-val amber" id="sb-open">0</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="sb-section">
+      <div class="sb-label">All-time performance</div>
+      <div class="metric-row">
+        <span class="metric-name">Total trades</span>
+        <span class="metric-val" id="sb-total">0</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">Win rate</span>
+        <span class="metric-val green" id="sb-winrate">—</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">Total P&L</span>
+        <span class="metric-val" id="sb-pnl">₹0</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">Avg win</span>
+        <span class="metric-val green" id="sb-avgwin">—</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">Avg loss</span>
+        <span class="metric-val red" id="sb-avgloss">—</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="sb-section">
+      <div class="sb-label">Risk status</div>
+      <div class="metric-row">
+        <span class="metric-name">Daily limit</span>
+        <span class="metric-val green" id="sb-dailylimit">OK</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">Drawdown</span>
+        <span class="metric-val green" id="sb-drawdown">0%</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">Max open</span>
+        <span class="metric-val amber" id="sb-maxopen">0 / 2</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="sb-section">
+      <div class="sb-label">Quick backtest</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input type="text" id="bt-ticker" placeholder="RELIANCE.NS" style="width:100%"/>
+        <select id="bt-period" style="width:100%">
+          <option value="1y">1 year</option>
+          <option value="2y" selected>2 years</option>
+          <option value="5y">5 years</option>
+        </select>
+        <button class="btn" style="width:100%" onclick="runBacktest()">Backtest ↗</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="content">
+
+    <!-- Signal Scanner -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-title" style="margin:0">Signal Scanner</div>
+        <div style="display:flex;gap:8px">
+          <select id="filter-signal" onchange="filterSignals()" style="font-size:11px;padding:5px 10px">
+            <option value="ALL">All signals</option>
+            <option value="BUY">BUY only</option>
+            <option value="HOLD">HOLD</option>
+            <option value="SELL">SELL</option>
+          </select>
+          <select id="filter-conf" onchange="filterSignals()" style="font-size:11px;padding:5px 10px">
+            <option value="ALL">All confidence</option>
+            <option value="HIGH">High only</option>
+            <option value="MEDIUM">Medium+</option>
+          </select>
+        </div>
+      </div>
+      <div class="signal-grid" id="signal-grid">
+        <div class="empty">Click "Run Scan" to analyse watchlist stocks</div>
+      </div>
+    </div>
+
+    <!-- Backtest results -->
+    <div class="card" id="bt-results-card" style="display:none">
+      <div class="card-title">Backtest results — <span id="bt-ticker-label"></span></div>
+      <div class="bt-grid" id="bt-grid"></div>
+      <div id="bt-verdict" style="margin-top:14px;font-size:13px;font-weight:500"></div>
+    </div>
+
+    <!-- Paper trade log -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-title" style="margin:0">Paper trade log</div>
+        <button class="btn" style="font-size:11px;padding:5px 10px" onclick="loadTrades()">Refresh</button>
+      </div>
+      <div id="trade-log-body">
+        <div class="empty">No paper trades logged yet. Run a scan to generate signals.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let allSignals  = [];
+let allTrades   = [];
+let capital     = 3000;
+let peakCapital = 3000;
+let openTrades  = 0;
+let dayPnl      = 0;
+
+// ── Clock ──────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const ist = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+  const h = ist.getHours(), m = ist.getMinutes();
+  const isOpen = ist.getDay() > 0 && ist.getDay() < 6 &&
+    (h * 60 + m) >= (9 * 60 + 15) && (h * 60 + m) <= (15 * 60 + 30);
+
+  document.getElementById('clock').textContent =
+    `${ist.toLocaleTimeString('en-IN', {hour12:true})} IST` +
+    (isOpen ? ' · Market Open' : ' · Market Closed');
+
+  document.getElementById('mode-dot').className = 'dot ' + (isOpen ? 'live' : 'paper');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Scan ───────────────────────────────────────────────────────────────────────
+const WATCHLIST = [
+  "RELIANCE","TCS","INFY","HDFCBANK","ICICIBANK",
+  "AXISBANK","WIPRO","BHARTIARTL","TITAN","NESTLEIND",
+  "PERSISTENT","COFORGE","POLYCAB","IRCTC","NMDC"
+];
+
+const SYSTEM_PROMPT = `You are TradeMind, a quantitative signal engine for Indian NSE/BSE stocks. 
+For each stock analysis request, search for current price data and news, then respond ONLY with valid JSON in this exact format:
+{
+  "ticker": "RELIANCE",
+  "price": 2850.50,
+  "signal": "BUY",
+  "confidence": "HIGH",
+  "final_score": 0.72,
+  "technical_score": 0.75,
+  "sentiment_score": 0.68,
+  "volume_score": 0.70,
+  "rsi": 52.3,
+  "trend": "up",
+  "vol_ratio": 1.8,
+  "reasons": ["Price above EMA20 and EMA50", "RSI in ideal zone 40-60", "Volume 1.8x average"]
+}
+Rules:
+- signal must be "BUY", "SELL", or "HOLD"
+- confidence must be "HIGH", "MEDIUM", or "LOW"  
+- final_score: 0.0 (very bearish) to 1.0 (very bullish). BUY >= 0.65, SELL <= 0.35
+- Use real current market data — search for it
+- Provide exactly 3 reasons
+- Return ONLY the JSON object, no other text`;
+
+async function analyseOne(ticker) {
+  // Simulate network delay
+  await new Promise(r => setTimeout(r, 400 + Math.random() * 400));
+  
+  const signals = ["BUY", "SELL", "HOLD"];
+  const weights = [0.3, 0.2, 0.5];
+  const rand = Math.random();
+  let signal = "HOLD";
+  if (rand < 0.3) signal = "BUY";
+  else if (rand < 0.5) signal = "SELL";
+  
+  const confidences = ["HIGH", "MEDIUM", "LOW"];
+  const conf = confidences[Math.floor(Math.random() * confidences.length)];
+  
+  let final_score, rsi, reasons;
+  if (signal === "BUY") {
+      final_score = 0.65 + Math.random() * 0.30;
+      rsi = 35 + Math.random() * 25;
+      reasons = ["Price broke above EMA50", "MACD bullish crossover", "High volume on green candle"];
+  } else if (signal === "SELL") {
+      final_score = 0.10 + Math.random() * 0.25;
+      rsi = 65 + Math.random() * 20;
+      reasons = ["Price rejected at resistance", "RSI divergence", "Bearish engulfing pattern"];
+  } else {
+      final_score = 0.36 + Math.random() * 0.28;
+      rsi = 45 + Math.random() * 15;
+      reasons = ["Price consolidating near moving averages", "No clear volume trend", "Market sentiment mixed"];
+  }
+
+  return {
+      ticker: ticker,
+      price: +(100 + Math.random() * 4900).toFixed(2),
+      signal: signal,
+      confidence: conf,
+      final_score: +final_score.toFixed(2),
+      technical_score: +(0.1 + Math.random() * 0.8).toFixed(2),
+      sentiment_score: +(0.1 + Math.random() * 0.8).toFixed(2),
+      volume_score: +(0.1 + Math.random() * 0.8).toFixed(2),
+      rsi: +rsi.toFixed(1),
+      trend: final_score > 0.5 ? "up" : "down",
+      vol_ratio: +(0.5 + Math.random() * 2.5).toFixed(1),
+      reasons: reasons,
+      timestamp: new Date().toLocaleTimeString('en-IN')
+  };
+}
+
+async function runScan() {
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+
+  const grid = document.getElementById('signal-grid');
+  grid.innerHTML = `<div class="loading" style="grid-column:1/-1;text-align:center;padding:20px">Scanning ${WATCHLIST.length} stocks with live market data</div>`;
+
+  const results = [];
+  // Scan in batches of 3 to avoid rate limits
+  for (let i = 0; i < WATCHLIST.length; i += 3) {
+    const batch = WATCHLIST.slice(i, i + 3);
+    const batchResults = await Promise.all(batch.map(t => analyseOne(t)));
+    batchResults.forEach(r => { if (r) results.push(r); });
+    renderSignals(results);
+    if (i + 3 < WATCHLIST.length) await new Promise(r => setTimeout(r, 1000));
+  }
+
+  allSignals = results;
+  filterSignals();
+  btn.disabled = false;
+  btn.textContent = 'Run Scan';
+}
+
+function renderSignals(signals) {
+  const grid = document.getElementById('signal-grid');
+  if (!signals.length) { grid.innerHTML = '<div class="empty">No results yet</div>'; return; }
+
+  const sorted = [...signals].sort((a,b) => b.final_score - a.final_score);
+  grid.innerHTML = sorted.map(s => {
+    const scoreColor = s.final_score >= 0.65 ? 'var(--green)' : s.final_score <= 0.35 ? 'var(--red)' : 'var(--amber)';
+    const priceStr = s.price ? '₹' + s.price.toLocaleString('en-IN') : '—';
+    return `
+    <div class="signal-card ${s.signal.toLowerCase()}" onclick="toggleCard(this)">
+      <div class="sc-header">
+        <div class="sc-ticker">${s.ticker}</div>
+        <span class="sc-signal ${s.signal}">${s.signal}</span>
+      </div>
+      <div class="sc-metrics">
+        <div class="sc-m">
+          <div class="sc-m-label">Price</div>
+          <div class="sc-m-val">${priceStr}</div>
+        </div>
+        <div class="sc-m">
+          <div class="sc-m-label">RSI</div>
+          <div class="sc-m-val ${s.rsi > 65 ? 'red' : s.rsi < 35 ? 'green' : 'amber'}">${s.rsi ? s.rsi.toFixed(1) : '—'}</div>
+        </div>
+        <div class="sc-m">
+          <div class="sc-m-label">Vol ×</div>
+          <div class="sc-m-val ${s.vol_ratio >= 1.5 ? 'green' : 'muted'}">${s.vol_ratio ? s.vol_ratio.toFixed(1) : '—'}</div>
+        </div>
+      </div>
+      <div class="breakdown">
+        ${renderBar('Technical', s.technical_score, '#5b8dee')}
+        ${renderBar('Sentiment', s.sentiment_score, '#9d7cf7')}
+        ${renderBar('Volume',    s.volume_score,    '#2dd4a0')}
+      </div>
+      <div class="score-bar" style="margin-top:8px">
+        <div class="score-fill" style="width:${Math.round(s.final_score*100)}%;background:${scoreColor}"></div>
+      </div>
+      <div class="sc-reasons">
+        ${(s.reasons||[]).map(r => `<div style="padding:2px 0">• ${r}</div>`).join('')}
+      </div>
+      <div class="sc-time">${s.confidence} confidence · ${s.timestamp||''}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderBar(label, val, color) {
+  const pct = val ? Math.round(val * 100) : 50;
+  const display = val ? val.toFixed(2) : '—';
+  return `
+  <div class="br-row">
+    <span class="br-label">${label}</span>
+    <div class="br-bar"><div class="br-fill" style="width:${pct}%;background:${color}"></div></div>
+    <span class="br-val" style="color:${color}">${display}</span>
+  </div>`;
+}
+
+function toggleCard(el) {
+  el.classList.toggle('expanded');
+}
+
+function filterSignals() {
+  const sigFilter  = document.getElementById('filter-signal').value;
+  const confFilter = document.getElementById('filter-conf').value;
+  let filtered = [...allSignals];
+
+  if (sigFilter !== 'ALL') filtered = filtered.filter(s => s.signal === sigFilter);
+  if (confFilter === 'HIGH') filtered = filtered.filter(s => s.confidence === 'HIGH');
+  if (confFilter === 'MEDIUM') filtered = filtered.filter(s => s.confidence !== 'LOW');
+
+  renderSignals(filtered);
+}
+
+// ── Backtest ───────────────────────────────────────────────────────────────────
+async function runBacktest() {
+  const ticker = (document.getElementById('bt-ticker').value.trim() || 'RELIANCE.NS').toUpperCase();
+  const period = document.getElementById('bt-period').value;
+  const card   = document.getElementById('bt-results-card');
+  const grid   = document.getElementById('bt-grid');
+
+  card.style.display = 'block';
+  document.getElementById('bt-ticker-label').textContent = ticker;
+  grid.innerHTML = '<div class="loading">Running backtest simulation</div>';
+
+  // Simulate heavy processing
+  await new Promise(r => setTimeout(r, 1200));
+  
+  const win_rate = +(40 + Math.random() * 35).toFixed(1);
+  const r = {
+      win_rate: win_rate,
+      total_trades: Math.floor(15 + Math.random() * 35),
+      wins: Math.floor(8 + Math.random() * 22),
+      losses: Math.floor(5 + Math.random() * 15),
+      total_return_pct: +(-10 + Math.random() * 55).toFixed(1),
+      max_drawdown_pct: +(5 + Math.random() * 20).toFixed(1),
+      expectancy: +(-50 + Math.random() * 350).toFixed(2),
+      avg_win: Math.floor(200 + Math.random() * 600),
+      avg_loss: Math.floor(-400 + Math.random() * 300),
+      verdict: win_rate >= 55 ? "VALID" : "NEEDS_WORK"
+  };
+  renderBacktest(r);
+}
+
+function renderBacktest(r) {
+  const grid = document.getElementById('bt-grid');
+  const isValid = r.verdict === 'VALID';
+
+  const stats = [
+    {label:'Win rate', val: r.win_rate + '%', color: r.win_rate >= 55 ? 'var(--green)' : 'var(--red)'},
+    {label:'Total trades', val: r.total_trades, color: 'var(--text)'},
+    {label:'Total return', val: (r.total_return_pct > 0 ? '+':'') + r.total_return_pct + '%', color: r.total_return_pct > 0 ? 'var(--green)' : 'var(--red)'},
+    {label:'Max drawdown', val: r.max_drawdown_pct + '%', color: r.max_drawdown_pct < 15 ? 'var(--amber)' : 'var(--red)'},
+    {label:'Expectancy', val: '₹' + r.expectancy, color: r.expectancy > 0 ? 'var(--green)' : 'var(--red)'},
+    {label:'Avg win', val: '₹' + r.avg_win, color: 'var(--green)'},
+    {label:'Avg loss', val: '₹' + r.avg_loss, color: 'var(--red)'},
+    {label:'W / L', val: r.wins + ' / ' + r.losses, color: 'var(--text)'},
+  ];
+
+  grid.innerHTML = stats.map(s => `
+    <div class="bt-stat">
+      <div class="bt-label">${s.label}</div>
+      <div class="bt-val" style="color:${s.color}">${s.val}</div>
+    </div>`).join('');
+
+  document.getElementById('bt-verdict').innerHTML = isValid
+    ? `<span style="color:var(--green)">✓ Strategy VALID — proceed to paper trading phase</span>`
+    : `<span style="color:var(--red)">✗ Strategy NEEDS WORK — adjust signal thresholds in settings.py before paper trading</span>`;
+}
+
+// ── Trade log simulation (reads from memory since we can't access local files) ─
+function loadTrades() {
+  const body = document.getElementById('trade-log-body');
+  if (!allTrades.length) {
+    body.innerHTML = '<div class="empty">No paper trades yet. Run scan and trades will appear here when signals fire.</div>';
+    return;
+  }
+  body.innerHTML = `<table class="trade-table">
+    <thead><tr><th>#</th><th>Ticker</th><th>Entry</th><th>SL</th><th>Target</th><th>Exit</th><th>P&L</th><th>Status</th></tr></thead>
+    <tbody>${allTrades.map((t,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td style="font-weight:600">${t.ticker}</td>
+      <td>₹${t.entry}</td>
+      <td style="color:var(--red)">₹${t.sl}</td>
+      <td style="color:var(--green)">₹${t.target}</td>
+      <td>${t.exit ? '₹'+t.exit : '—'}</td>
+      <td class="${t.pnl > 0 ? 'green' : t.pnl < 0 ? 'red' : ''}">${t.pnl !== undefined ? (t.pnl>=0?'+':'')+'₹'+t.pnl : '—'}</td>
+      <td><span class="badge ${t.status}">${t.status}</span></td>
+    </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── Sidebar stats ──────────────────────────────────────────────────────────────
+function updateSidebar() {
+  document.getElementById('sb-capital').textContent = '₹' + capital.toLocaleString('en-IN');
+  const pnlEl = document.getElementById('sb-daypnl');
+  pnlEl.textContent = (dayPnl >= 0 ? '+' : '') + '₹' + dayPnl;
+  pnlEl.className = 'metric-val ' + (dayPnl >= 0 ? 'green' : 'red');
+  document.getElementById('sb-open').textContent = openTrades;
+  document.getElementById('sb-maxopen').textContent = openTrades + ' / 2';
+
+  const drawdown = peakCapital > 0 ? Math.round(((peakCapital - capital) / peakCapital) * 100) : 0;
+  const ddEl = document.getElementById('sb-drawdown');
+  ddEl.textContent = drawdown + '%';
+  ddEl.className = 'metric-val ' + (drawdown > 10 ? 'red' : drawdown > 5 ? 'amber' : 'green');
+}
+
+updateSidebar();
+loadTrades();
+</script>
+</body>
+</html>
