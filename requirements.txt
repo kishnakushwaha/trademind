@@ -1,13 +1,26 @@
-yfinance==0.2.38
+# Core dependencies
 pandas==2.2.0
 numpy==1.26.4
 pandas-ta==0.3.14b
-transformers==4.38.0
-torch==2.2.0
 requests==2.31.0
 beautifulsoup4==4.12.3
-python-telegram-bot==20.7
-kiteconnect==5.0.1
+lxml==5.1.0
+
+# Scheduling & Logging
 schedule==1.2.1
 python-dotenv==1.0.1
 colorlog==6.8.2
+
+# Telegram alerts
+python-telegram-bot==20.7
+
+# Yahoo Finance (kept as fallback, not used in main fetcher)
+yfinance==0.2.38
+
+# Zerodha (Phase 4 — not needed yet)
+# kiteconnect==5.0.1
+
+# FinBERT sentiment (optional — too heavy for free tier)
+# Install locally with: pip install transformers torch
+# transformers==4.38.0
+# torch==2.2.0
