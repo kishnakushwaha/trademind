@@ -5,7 +5,6 @@ Score > 0.65 = bullish. Score < 0.35 = bearish. In between = neutral.
 """
 
 import pandas as pd
-import pandas_ta as ta
 import numpy as np
 import logging
 
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add all technical indicators to OHLCV DataFrame.
-    Uses pandas-ta for reliable calculation.
+    Uses the 'ta' library for reliable calculation.
     """
     if df.empty or len(df) < 60:
         logger.warning("Insufficient data for indicator calculation (need 60+ rows)")
@@ -28,31 +27,35 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.copy()
 
-    # Trend
-    df[f"EMA_{EMA_FAST}"]  = ta.ema(df["Close"], length=EMA_FAST)
-    df[f"EMA_{EMA_SLOW}"]  = ta.ema(df["Close"], length=EMA_SLOW)
-    df["EMA_200"]           = ta.ema(df["Close"], length=200)
+    # Trend — EMA
+    df[f"EMA_{EMA_FAST}"]  = df["Close"].ewm(span=EMA_FAST, adjust=False).mean()
+    df[f"EMA_{EMA_SLOW}"]  = df["Close"].ewm(span=EMA_SLOW, adjust=False).mean()
+    df["EMA_200"]           = df["Close"].ewm(span=200, adjust=False).mean()
 
-    # Momentum
-    df["RSI"]              = ta.rsi(df["Close"], length=14)
-    macd = ta.macd(df["Close"], fast=12, slow=26, signal=9)
-    if macd is not None:
-        df["MACD"]         = macd["MACD_12_26_9"]
-        df["MACD_signal"]  = macd["MACDs_12_26_9"]
-        df["MACD_hist"]    = macd["MACDh_12_26_9"]
+    # Momentum — RSI
+    try:
+        import ta as ta_lib
+        df["RSI"] = ta_lib.momentum.RSIIndicator(df["Close"], window=14).rsi()
 
-    # Volatility
-    bb = ta.bbands(df["Close"], length=20, std=2)
-    if bb is not None:
-        # Column names vary across pandas-ta versions (BBU_20_2.0 vs BBU_20_2)
-        bb_cols = bb.columns.tolist()
-        bbu = [c for c in bb_cols if c.startswith("BBU")]
-        bbl = [c for c in bb_cols if c.startswith("BBL")]
-        bbm = [c for c in bb_cols if c.startswith("BBM")]
-        if bbu and bbl and bbm:
-            df["BB_upper"] = bb[bbu[0]]
-            df["BB_lower"] = bb[bbl[0]]
-            df["BB_mid"]   = bb[bbm[0]]
+        # MACD
+        macd_ind = ta_lib.trend.MACD(df["Close"], window_slow=26, window_fast=12, window_sign=9)
+        df["MACD"]        = macd_ind.macd()
+        df["MACD_signal"] = macd_ind.macd_signal()
+        df["MACD_hist"]   = macd_ind.macd_diff()
+
+        # Bollinger Bands
+        bb_ind = ta_lib.volatility.BollingerBands(df["Close"], window=20, window_dev=2)
+        df["BB_upper"] = bb_ind.bollinger_hband()
+        df["BB_lower"] = bb_ind.bollinger_lband()
+        df["BB_mid"]   = bb_ind.bollinger_mavg()
+    except ImportError:
+        # Fallback: manual RSI calculation if 'ta' not installed
+        logger.warning("'ta' library not installed, using manual RSI calculation")
+        delta = df["Close"].diff()
+        gain = delta.where(delta > 0, 0).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df["RSI"] = 100 - (100 / (1 + rs))
 
     # Volume
     df["Volume_MA20"]      = df["Volume"].rolling(window=20).mean()
@@ -64,6 +67,7 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     df.dropna(inplace=True)
     return df
+
 
 
 def score_technical(df: pd.DataFrame) -> dict:
