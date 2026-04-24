@@ -74,8 +74,8 @@ class PaperTrader:
         self._trade_counter += 1
         
         # Telegram alert
-        from monitor.telegram_bot import send_telegram_msg
-        msg = (f"🔵 *NEW PAPER TRADE*\n\n"
+        from monitor.telegram_bot import send_message
+        msg = (f"🔵 NEW PAPER TRADE\n\n"
                f"Stock: {ticker}\n"
                f"Entry: ₹{entry_price}\n"
                f"Qty: {qty}\n"
@@ -83,7 +83,7 @@ class PaperTrader:
                f"Target 1: ₹{target_1}\n"
                f"Target 2: ₹{target_2}\n"
                f"Score: {signal_score}")
-        send_telegram_msg(msg)
+        send_message(msg)
         
         logger.info(f"Paper trade #{trade['id']} opened: {ticker} @ ₹{entry_price}")
         return trade
@@ -114,14 +114,14 @@ class PaperTrader:
             self._save_all_trades(trades)
             
             # Telegram alert
-            from monitor.telegram_bot import send_telegram_msg
+            from monitor.telegram_bot import send_message
             result_icon = "🟢" if updated["result"] == "WIN" else "🔴"
-            msg = (f"{result_icon} *PAPER TRADE CLOSED*\n\n"
+            msg = (f"{result_icon} PAPER TRADE CLOSED\n\n"
                    f"Stock: {ticker}\n"
                    f"Exit: ₹{exit_price}\n"
                    f"Reason: {exit_reason}\n"
                    f"P&L: ₹{updated['pnl']} ({updated['result']})")
-            send_telegram_msg(msg)
+            send_message(msg)
             
             logger.info(
                 f"Paper trade #{trade_id} closed @ ₹{exit_price} | "

@@ -57,8 +57,8 @@ def is_market_open() -> bool:
 # ── Scheduled jobs ─────────────────────────────────────────────────────────────
 def morning_scan(agent: TradeMindAgent):
     """Run at 9:30 AM IST — main opportunity scan."""
-    from monitor.telegram_bot import send_telegram_msg
-    send_telegram_msg("🚀 *TradeMind Morning Scan Started*...")
+    from monitor.telegram_bot import send_message
+    send_message("🚀 TradeMind Morning Scan Started...")
     
     logger.info("=== MORNING SCAN ===")
     results = agent.scan_all()
@@ -70,7 +70,7 @@ def morning_scan(agent: TradeMindAgent):
         for r in buy_signals[:3]:
             msg += f"\n• {r['ticker']}: Score {r['final_score']} ({r['confidence']})"
     
-    send_telegram_msg(msg)
+    send_message(msg)
     logger.info(f"Morning scan done: {len(buy_signals)} BUY signals")
 
 
@@ -81,8 +81,8 @@ def midday_check(agent: TradeMindAgent):
         logger.info("Midday check: no open positions")
         return
     
-    from monitor.telegram_bot import send_telegram_msg
-    send_telegram_msg(f"📊 *Midday Check*: Monitoring {len(open_trades)} open positions.")
+    from monitor.telegram_bot import send_message
+    send_message(f"📊 Midday Check: Monitoring {len(open_trades)} open positions.")
     logger.info(f"Midday check: {len(open_trades)} open positions")
 
 
