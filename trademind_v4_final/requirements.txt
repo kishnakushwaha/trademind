@@ -1,0 +1,13 @@
+yfinance==0.2.38
+pandas==2.2.0
+numpy==1.26.4
+pandas-ta==0.3.14b
+transformers==4.38.0
+torch==2.2.0
+requests==2.31.0
+beautifulsoup4==4.12.3
+python-telegram-bot==20.7
+kiteconnect==5.0.1
+schedule==1.2.1
+python-dotenv==1.0.1
+colorlog==6.8.2

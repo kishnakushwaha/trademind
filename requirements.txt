@@ -17,6 +17,9 @@ python-telegram-bot==20.7
 # Yahoo Finance (kept as fallback, not used in main fetcher)
 yfinance==0.2.38
 
+# Claude AI strategies (V5 — Sonnet + Opus comparison)
+anthropic>=0.30.0
+
 # Zerodha (Phase 4 — not needed yet)
 # kiteconnect==5.0.1
 
